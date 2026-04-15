@@ -3,17 +3,18 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Set legacy-peer-deps globally to avoid Angular peer dep conflicts
-RUN npm config set legacy-peer-deps true
-
-# Copy package file and install dependencies
+# Copy package file first for better Docker layer caching
 COPY package.json ./
-RUN npm install
+
+# Install all dependencies (including devDependencies needed for build)
+RUN npm install --legacy-peer-deps
 
 # Copy the rest of the source code
 COPY . .
 
 # Build the Angular app in production mode
+# angular.json sets outputPath.base=dist, outputPath.browser=""
+# so compiled files land directly in /app/dist/ (no browser/ subfolder)
 RUN npm run build
 
 # ─── Stage 2: Serve ───────────────────────────────────────────────────────────
@@ -21,14 +22,14 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-# Install only the 'serve' package to host the static files
+# Install serve globally to host static files
 RUN npm install -g serve
 
-# Copy built output from the builder stage
-COPY --from=builder /app/dist/quantity-management-app-angular/browser ./dist
+# Copy compiled output directly from builder's dist/
+COPY --from=builder /app/dist ./dist
 
-# Expose the port Render will use (Render sets $PORT at runtime)
+# Render injects $PORT at runtime; default to 3000 locally
 EXPOSE 3000
 
-# --single flag handles Angular client-side routing (redirects 404s to index.html)
+# --single: redirects all 404s to index.html for Angular client-side routing
 CMD serve ./dist --listen tcp://0.0.0.0:${PORT:-3000} --single

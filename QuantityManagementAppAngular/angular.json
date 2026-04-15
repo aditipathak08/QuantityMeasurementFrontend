@@ -32,7 +32,11 @@
             ],
             "styles": [
               "src/styles.scss"
-            ]
+            ],
+            "outputPath": {
+              "base": "dist",
+              "browser": ""
+            }
           },
           "configurations": {
             "production": {
