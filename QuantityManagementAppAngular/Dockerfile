@@ -3,11 +3,12 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files first for better Docker layer caching
-COPY package.json ./
+# Set legacy-peer-deps globally to avoid Angular peer dep conflicts
+RUN npm config set legacy-peer-deps true
 
-# Install all dependencies (including devDependencies needed for build)
-RUN npm install --legacy-peer-deps
+# Copy package file and install dependencies
+COPY package.json ./
+RUN npm install
 
 # Copy the rest of the source code
 COPY . .
@@ -29,6 +30,5 @@ COPY --from=builder /app/dist/quantity-management-app-angular/browser ./dist
 # Expose the port Render will use (Render sets $PORT at runtime)
 EXPOSE 3000
 
-# Start the static file server
 # --single flag handles Angular client-side routing (redirects 404s to index.html)
 CMD serve ./dist --listen tcp://0.0.0.0:${PORT:-3000} --single
